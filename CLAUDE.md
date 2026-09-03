@@ -25,4 +25,4 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Rendering** (`ui/render.ts`): every block stays in the DOM (not virtualized); `content-visibility: auto` keeps scrolling cheap. Headings render synchronously at book-open time; **highlighting them must be deferred until after the book's container is attached to the live DOM** — creating a `Range` against a node still inside a detached `DocumentFragment` gets silently corrupted when that node is later moved. See `LEARNINGS.md` #9 before touching `BlockList.build()`.
 - **Highlighting** (`ui/highlight.ts`): CSS Custom Highlight API (`CSS.highlights`/`::highlight()`), not DOM mutation. `<mark>`-wrapping fallback for browsers without it.
 
-See `README.md` for the full picture, `docs/ROADMAP.md`/`docs/ISSUES.md` for what's left.
+See `docs/ARCHITECTURE.md` for the full picture, `docs/ROADMAP.md`/`docs/ISSUES.md` for what's left.

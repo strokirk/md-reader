@@ -2,32 +2,27 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Conventions
+
+- Commit directly to `main` and push eagerly as you go — don't batch work into one big commit at the end.
+- Read `LEARNINGS.md` before nontrivial work. Add an entry for every difficulty or bug you hit, noting whether it could have been caught statically (`tsc`/ESLint) — this is a standing project requirement, not optional.
+- Keep `docs/ROADMAP.md` and `docs/ISSUES.md` current as things change.
+- One-off diagnostic/dev scripts (Playwright checks, fixture generators) go in `scripts/`, committed, not in `/tmp` — see `scripts/README.md`.
+
 ## Commands
 
-- `npm run dev` — Vite dev server.
-- `npm run check` — the gate to run before considering anything done: typecheck + lint + format check + unit tests, in that order. Runs each sub-command (`typecheck`, `lint`, `format:check`, `test`) individually too.
-- `npm test` / `npm run test:watch` — Vitest, `tests/**/*.test.ts`. Single test: `npx vitest run tests/search.test.ts -t "name of it() block"`.
-- `npm run build && npm run preview` — production build, served locally, for anything that needs a real service worker (the dev server doesn't run one).
-- `node scripts/e2e-smoke.mjs <corpus-dir> <out-dir>` — manual Playwright pass against a running preview build (import → search → read → reload). Not part of `npm run check`; see `scripts/README.md`.
+- `npm run check` — typecheck + lint + format check + unit tests. Run this before considering anything done.
+- `npm test` — Vitest (`tests/**/*.test.ts`). Single test: `npx vitest run tests/search.test.ts -t "name"`.
+- `npm run build && npm run preview` — needed for anything touching the service worker; the dev server doesn't run one.
 
 ## Architecture
 
-Three layers, strictly separated by where they run:
+- `src/core/` — pure logic, no DOM (`parser.ts`, `search.ts`, `types.ts`). The only place that needs unit tests.
+- `src/worker/` — all parsing/searching and all OPFS/IndexedDB access happens in `library.worker.ts`, off the main thread, exposed via Comlink (`api.ts`'s `LibraryApi`). Search results stream back per file, not as one batch.
+- `src/ui/` — main thread, rendering only. Talks to the library exclusively through the worker proxy (`Store.api`); never parses or searches directly.
+- **Data model**: each file becomes a flat `Block[]`, not a tree (`core/types.ts`). Every block carries its full heading ancestry (`headingPath`/`headingIds`) — that's what lets "expand a search hit to its containing chapter" work without a separate tree structure.
+- **Search** (`core/search.ts`): linear regex scan over each file's contiguous text, no inverted index — fast enough at this corpus size. Matches map back to blocks via binary search on `charStart`.
+- **Rendering** (`ui/render.ts`): every block stays in the DOM (not virtualized); `content-visibility: auto` keeps scrolling cheap. Headings render synchronously at book-open time; **highlighting them must be deferred until after the book's container is attached to the live DOM** — creating a `Range` against a node still inside a detached `DocumentFragment` gets silently corrupted when that node is later moved. See `LEARNINGS.md` #9 before touching `BlockList.build()`.
+- **Highlighting** (`ui/highlight.ts`): CSS Custom Highlight API (`CSS.highlights`/`::highlight()`), not DOM mutation. `<mark>`-wrapping fallback for browsers without it.
 
-- **`src/core/`** — pure logic, no DOM, unit-tested directly (`parser.ts`, `search.ts`, `types.ts`). This is the only place that should ever need a new unit test.
-- **`src/worker/`** — everything that touches OPFS/IndexedDB or does real parsing/searching runs in `library.worker.ts`, off the main thread. `api.ts` defines the `LibraryApi` RPC surface; `src/main.ts` gets a `Comlink.wrap`'d proxy to it, and every UI module talks to the library only through that proxy (`Store.api` in `src/ui/store.ts`). Search results stream back via a `Comlink.proxy()` callback per file, not a single batched return.
-- **`src/ui/`** — main-thread rendering only. Never parses or searches; always calls into the worker and renders what comes back.
-
-**Data model** (`core/types.ts`): each file is parsed once, at import, into a flat `Block[]` — not a tree. Every block carries its full heading ancestry (`headingPath: string[]` / `headingIds: string[]`), which is the single mechanism that makes both search granularities work: a search hit is a block, and "expand to the containing chapter" is just walking `headingIds` — no separate tree structure to keep in sync. `core/parser.ts` builds this by tracking a heading stack while iterating markdown-it's token stream once.
-
-**Storage split**: `storage/opfs.ts` persists, per file, the plain-text concatenation of every block (one contiguous string) plus the block list as JSON (`StoredBlock` — `Block` minus `text`, which is recovered by slicing the contiguous string on load, so it isn't duplicated on disk). `storage/db.ts` (IndexedDB via `idb`) holds only metadata: `FileMeta`, the saved directory handle, saved search sets. Nothing is re-parsed on reopen — `library.worker.ts`'s `init()` just reads both back and reconstructs `Block[]` via `fromStored`.
-
-**Search** (`core/search.ts`): a linear regex scan over each file's contiguous text — deliberately no inverted index, since a full scan of a ~6 MB library already returns in well under 100 ms. `compileTerms` builds one `RegExp` per term (whole-word uses Unicode-aware lookaround, not `\b`, which is ASCII-only). `scanText` finds all matches, `groupMatchesByBlock` maps absolute offsets back to blocks via binary search on `charStart`, and `combineHits` applies the any/all/all-in-section boolean rule — "section" means "shares the nearest ancestor heading at or above a configurable level," resolved via `sectionKeyByLevel`, not a fixed heading level.
-
-**Rendering** (`ui/render.ts`, `BlockList`): mounts a whole book as nested `<section>`s (one per heading) with non-heading blocks grouped into fixed-size chunks. Every block stays in the DOM — this is not a virtual list — and `content-visibility: auto` + `contain-intrinsic-size` is what keeps scrolling cheap despite that; chunks render their Markdown lazily via `IntersectionObserver`. Headings are the deliberate exception: their text renders synchronously at book-open time so nothing flashes empty while scrolling, but **highlighting for headings must be deferred until after the book's `DocumentFragment` is attached to the live document** — creating a `Range` against a node still inside a detached fragment gets silently corrupted once that node is later moved (see `LEARNINGS.md` #9 for the exact DOM-spec mechanism). If you touch `BlockList.build()`, preserve that ordering.
-
-**Highlighting** (`ui/highlight.ts`, `Highlighter`): one `Highlight` object per colour slot, registered via `CSS.highlights.set("term-N", ...)` and styled with `::highlight(term-N)` — never mutates the rendered DOM. Built by walking a block's text nodes with a `TreeWalker`, concatenating into one string with an offset map, running the compiled term regexes, and mapping matches back to `Range` objects. There's a `<mark>`-wrapping fallback behind `if (!CSS.highlights)` for browsers without the API; it isn't exercised in normal (Chromium) testing (see `docs/ISSUES.md`).
-
-**iOS is the primary target, not a fallback**: `showDirectoryPicker()` is used where available, but `<input type=file webkitdirectory multiple>` (`ui/import.ts`) is treated as the primary import path rather than a degraded one, because iOS Safari only has it.
-
-For the full picture (why linear-scan search is correct at this scale, the PWA/offline setup, testing approach) see `README.md`. For difficulties hit during development and whether each could have been caught statically, see `LEARNINGS.md`. For what's left and known gaps, see `docs/ROADMAP.md` and `docs/ISSUES.md`.
+See `README.md` for the full picture, `docs/ROADMAP.md`/`docs/ISSUES.md` for what's left.

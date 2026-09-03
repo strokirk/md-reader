@@ -64,6 +64,13 @@ export class BlockList {
     let chunk: HTMLElement | null = null;
     let chunkIndices: number[] = [];
     let chunkEstimate = 0;
+    // Headings render synchronously (unlike lazy chunks) but must not be
+    // highlighted while still inside this detached fragment: moving a node
+    // out of a DocumentFragment resets any Range whose boundary lies inside
+    // it back to (fragment, oldIndex) per the DOM spec's node-removal steps,
+    // silently corrupting CSS Custom Highlight ranges. Defer onRender for
+    // headings until after the fragment is attached to the live document.
+    const headingsToRender: { el: HTMLElement; block: Block }[] = [];
 
     const closeChunk = (): void => {
       if (!chunk) return;
@@ -105,7 +112,7 @@ export class BlockList {
         this.elements[i] = headingEl;
         this.rendered.add(i);
         this.headingSections.set(i, section);
-        this.opts.onRender?.(headingEl, block);
+        headingsToRender.push({ el: headingEl, block });
         stack.push({ level: block.level, body: secBody });
         body = secBody;
         return;
@@ -123,6 +130,7 @@ export class BlockList {
     });
     closeChunk();
     this.root.replaceChildren(frag);
+    for (const { el, block } of headingsToRender) this.opts.onRender?.(el, block);
   }
 
   private renderChunk(chunk: HTMLElement): void {
@@ -178,13 +186,30 @@ export class BlockList {
     }
   }
 
+  /** Renders the chunks just before and after `index` so nearby layout is final. */
+  private renderNeighbours(index: number): void {
+    const el = this.elements[index];
+    const chunk = el?.parentElement;
+    if (!chunk?.classList.contains("chunk")) return;
+    for (const sibling of [chunk.previousElementSibling, chunk.nextElementSibling]) {
+      if (sibling instanceof HTMLElement && sibling.classList.contains("chunk"))
+        this.renderChunk(sibling);
+    }
+  }
+
   scrollTo(index: number, ratio = 0, behavior: ScrollBehavior = "auto"): void {
     const el = this.ensureRendered(index);
     if (!el) return;
-    el.scrollIntoView({ block: "start", behavior: "instant" });
+    this.renderNeighbours(index);
     const offset = this.opts.headerOffset?.() ?? 0;
-    const delta = el.getBoundingClientRect().top - offset + ratio * el.offsetHeight;
-    if (Math.abs(delta) > 0.5) window.scrollBy({ top: delta, behavior });
+    const align = (): void => {
+      const delta = el.getBoundingClientRect().top - offset - 8 + ratio * el.offsetHeight;
+      if (Math.abs(delta) > 0.5) window.scrollBy({ top: delta, behavior });
+    };
+    el.scrollIntoView({ block: "start", behavior: "instant" });
+    align();
+    // Chunks above may re-measure once they render; correct once more next frame.
+    requestAnimationFrame(align);
   }
 
   /** The block at the top of the viewport, with how far it is scrolled past. */

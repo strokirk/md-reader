@@ -126,6 +126,18 @@ export class SearchPanel {
     this.runSearch();
   }
 
+  /**
+   * Input changes are debounced; before any re-render of the term rows, pull
+   * whatever is currently typed into state so nothing is lost.
+   */
+  private termsFromInputs(): TermSpec[] {
+    const inputs = [...this.termsEl.querySelectorAll<HTMLInputElement>("input.term-input")];
+    return this.store.state.terms.map((t, i) => {
+      const v = inputs[i]?.value;
+      return v !== undefined && v !== t.pattern ? { ...t, pattern: v } : t;
+    });
+  }
+
   private renderTerms(): void {
     const terms = this.store.state.terms;
     const frag = document.createDocumentFragment();
@@ -141,7 +153,7 @@ export class SearchPanel {
               const used = new Set(terms.map((t) => t.colour));
               let colour = 0;
               while (used.has(colour) && colour < COLOUR_SLOTS - 1) colour++;
-              this.store.set("terms", [...this.store.state.terms, newTerm("", colour)]);
+              this.commitTerms([...this.termsFromInputs(), newTerm("", colour)]);
               this.renderTerms();
               this.termsEl.querySelector<HTMLInputElement>(".term-row:last-of-type input")?.focus();
             },
@@ -156,7 +168,7 @@ export class SearchPanel {
 
   private termRow(term: TermSpec, index: number): HTMLElement {
     const update = (patch: Partial<TermSpec>): void => {
-      const terms = this.store.state.terms.map((t, i) => (i === index ? { ...t, ...patch } : t));
+      const terms = this.termsFromInputs().map((t, i) => (i === index ? { ...t, ...patch } : t));
       this.commitTerms(terms);
     };
     const input = h("input", {
@@ -228,7 +240,7 @@ export class SearchPanel {
           ariaLabel: "Remove term",
           on: {
             click: () => {
-              const terms = this.store.state.terms.filter((_, i) => i !== index);
+              const terms = this.termsFromInputs().filter((_, i) => i !== index);
               this.commitTerms(terms.length > 0 ? terms : [newTerm("", 0)]);
               this.renderTerms();
             },
@@ -563,7 +575,7 @@ export class SearchPanel {
     });
     const crumb = h("div", { class: "group-path" });
     group.path.forEach((title, i) => {
-      if (i > 0) crumb.appendChild(h("span", { class: "sep", text: " › " }));
+      if (i > 0) crumb.appendChild(h("span", { class: "sep", text: "›" }));
       crumb.appendChild(
         h("span", { class: i === group.path.length - 1 ? "strong" : "", text: title }),
       );

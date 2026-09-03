@@ -93,6 +93,8 @@ async function route(): Promise<void> {
     }
     store.set("currentFileId", id);
     if (store.state.scope.kind === "file") store.set("scope", { kind: "file", fileId: id });
+    // Drop the block index from the URL so a reload restores the saved reading position.
+    if (block !== undefined) history.replaceState(null, "", `#/book/${id}`);
     library.el.hidden = true;
     reader.el.hidden = false;
     document.title = `${store.fileMeta(id)?.title ?? "Book"} · MD Reader`;

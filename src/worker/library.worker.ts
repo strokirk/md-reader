@@ -278,6 +278,32 @@ const api: LibraryApi = {
     return generation === searchGeneration ? searched : -1;
   },
 
+  async searchOne(query, fileId) {
+    await api.init();
+    const f = files.get(fileId);
+    if (!f) return null;
+    let compiled;
+    try {
+      compiled = compileTerms(query.terms);
+    } catch (err) {
+      if (err instanceof TermCompileError) throw new Error(`Bad pattern: ${err.message}`);
+      throw err;
+    }
+    if (compiled.length === 0) return null;
+    const result = searchFile(
+      { fileId: f.meta.id, text: f.text, blocks: f.blocks, offsets: f.offsets },
+      compiled,
+      query,
+    );
+    return {
+      fileId: f.meta.id,
+      title: f.meta.title,
+      hits: result.hits,
+      matchCount: result.matchCount,
+      truncated: result.truncated,
+    };
+  },
+
   async cancelSearch() {
     searchGeneration++;
     await Promise.resolve();

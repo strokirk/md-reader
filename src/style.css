@@ -40,7 +40,7 @@
   --hl-5: #ffa26b;
   --hl-6: #6ee7d8;
   --hl-7: #e6e6a0;
-  --hl-alpha: 0.42;
+  --hl-alpha: 0.5;
   --hl-fg: #f8f8f6;
 }
 :root[data-theme="light"] {
@@ -429,6 +429,7 @@ input[type="search"]::-webkit-search-decoration {
   color: var(--bg);
   font-size: 0.92em;
   box-shadow: 0 6px 24px rgb(0 0 0 / 0.35);
+  pointer-events: none;
 }
 html.dragging body::after {
   content: "Drop Markdown files or folders to import";
@@ -996,6 +997,9 @@ html.dragging body::after {
 }
 .group-path .strong {
   color: var(--fg);
+}
+.group-path .sep {
+  padding: 0 0.35em;
 }
 .expand {
   flex: none;

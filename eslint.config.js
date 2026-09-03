@@ -29,6 +29,23 @@ export default tseslint.config(
   {
     files: ["eslint.config.js", "vite.config.ts", "vitest.config.ts", "scripts/**/*.mjs"],
     extends: [tseslint.configs.disableTypeChecked],
-    languageOptions: { globals: { Buffer: "readonly", console: "readonly", process: "readonly" } },
+    languageOptions: {
+      globals: {
+        Buffer: "readonly",
+        console: "readonly",
+        process: "readonly",
+        setTimeout: "readonly",
+        // scripts/e2e-smoke.mjs embeds callbacks that run inside page.evaluate(),
+        // i.e. in a browser context, not this Node script's own context.
+        document: "readonly",
+        window: "readonly",
+        performance: "readonly",
+        requestAnimationFrame: "readonly",
+        cancelAnimationFrame: "readonly",
+        scrollY: "readonly",
+        CSS: "readonly",
+        location: "readonly",
+      },
+    },
   },
 );

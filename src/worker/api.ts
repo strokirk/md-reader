@@ -50,6 +50,8 @@ export interface LibraryApi {
     onFileHits: (hits: FileHits) => void,
   ): Promise<number>;
   cancelSearch(): Promise<void>;
+  /** Searches one file and returns its hits directly (no streaming). */
+  searchOne(query: SearchQuery, fileId: string): Promise<FileHits | null>;
   setReadingPosition(fileId: string, pos: ReadingPosition): Promise<void>;
   touchFile(fileId: string): Promise<void>;
   storageStatus(): Promise<StorageStatus>;

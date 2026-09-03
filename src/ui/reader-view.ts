@@ -1,4 +1,3 @@
-import * as Comlink from "comlink";
 import type { Block, BlockHit, FileMeta } from "../core/types.ts";
 import { debounce, h, icon } from "./dom.ts";
 import type { HighlightRange } from "./highlight.ts";
@@ -251,16 +250,10 @@ export class ReaderView {
     }
     const query = this.store.query({ kind: "file", fileId: meta.id });
     try {
-      await this.store.api.search(
-        query,
-        null,
-        Comlink.proxy((fh) => {
-          if (token !== this.searchToken) return;
-          this.hits = fh.hits;
-          this.totalMatches = fh.matchCount;
-          this.updateCounter();
-        }),
-      );
+      const fh = await this.store.api.searchOne(query, meta.id);
+      if (token !== this.searchToken) return;
+      this.hits = fh?.hits ?? [];
+      this.totalMatches = fh?.matchCount ?? 0;
     } catch {
       // A bad regex; the search panel reports it.
     }

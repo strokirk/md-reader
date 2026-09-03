@@ -6,8 +6,8 @@ same kind of check is needed, and — the main one — this directory doubles
 as a log of what triggered reaching for a script instead of a one-line
 shell command, which is worth keeping visible in git history.
 
-None of these run in CI or `npm run check`; they're manual tools for local
-development against a running preview build (`npm run build && npm run
+None of these run in CI or `pnpm run check`; they're manual tools for local
+development against a running preview build (`pnpm run build && pnpm run
 preview`, since the dev server doesn't run a service worker).
 
 | Script                           | Triggered by                                                                                                                                                                                                                                                                                                                                                |

@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "packageManager": "pnpm@10.33.0",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -13,7 +14,7 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check": "npm run typecheck && npm run lint && npm run format:check && npm run test"
+    "check": "tsc --noEmit -p tsconfig.json && eslint . && prettier --check . && vitest run"
   },
   "dependencies": {
     "comlink": "^4.4.2",
@@ -33,6 +34,7 @@
     "vitest": "^5.0.0",
     "workbox-core": "^7.4.1",
     "workbox-precaching": "^7.4.1",
-    "workbox-routing": "^7.4.1"
+    "workbox-routing": "^7.4.1",
+    "workbox-window": "^7.4.1"
   }
 }

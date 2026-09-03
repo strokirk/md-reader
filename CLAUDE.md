@@ -11,9 +11,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
-- `npm run check` — typecheck + lint + format check + unit tests. Run this before considering anything done.
-- `npm test` — Vitest (`tests/**/*.test.ts`). Single test: `npx vitest run tests/search.test.ts -t "name"`.
-- `npm run build && npm run preview` — needed for anything touching the service worker; the dev server doesn't run one.
+- `pnpm run check` — typecheck + lint + format check + unit tests. Run this before considering anything done.
+- `pnpm test` — Vitest (`tests/**/*.test.ts`). Single test: `pnpm exec vitest run tests/search.test.ts -t "name"`.
+- `pnpm run build && pnpm run preview` — needed for anything touching the service worker; the dev server doesn't run one.
 
 ## Architecture
 

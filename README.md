@@ -20,17 +20,17 @@ baking, no accounts: everything lives in the browser (OPFS + IndexedDB).
 ## Quick start
 
 ```sh
-npm install
-npm run dev       # http://localhost:5173
-npm run check     # typecheck + lint + format check + unit tests
-npm run build     # production build to dist/
-npm run preview   # serve the production build locally
+pnpm install
+pnpm dev          # http://localhost:5173
+pnpm run check    # typecheck + lint + format check + unit tests
+pnpm build        # production build to dist/
+pnpm preview      # serve the production build locally
 ```
 
 Deploying: any static host works. A GitHub Actions workflow
 (`.github/workflows/deploy.yml`) builds and deploys `dist/` to GitHub Pages
 on every push to `main` — see that file for the equivalent Cloudflare Pages
-settings (build command `npm run build`, output directory `dist`).
+settings (build command `pnpm run build`, output directory `dist`).
 
 ## Architecture
 
@@ -129,7 +129,7 @@ covers browsers without the API.
 
 `tests/parser.test.ts` and `tests/search.test.ts` cover the pure logic
 (Markdown → blocks, offset mapping, the search matcher, boolean
-combination) with Vitest — no DOM, no browser needed, part of `npm run
+combination) with Vitest — no DOM, no browser needed, part of `pnpm run
 check`.
 
 There's no automated browser/UI test suite wired into CI — see
@@ -140,7 +140,7 @@ service worker). Run any of them against a local preview build (the dev
 server doesn't run a service worker, so use `preview` for the offline one):
 
 ```sh
-npm run build && npm run preview &
+pnpm run build && pnpm run preview &
 node scripts/gen-test-corpus.mjs /tmp/corpus
 node scripts/e2e-smoke.mjs /tmp/corpus /tmp/out
 node scripts/verify-offline.mjs /tmp/corpus

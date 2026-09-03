@@ -4,7 +4,7 @@ Nothing here blocks the definition-of-done workflow (import → search →
 read with highlights → expand to chapter → reload offline at the same
 position), but these are gaps worth knowing about.
 
-- **No automated CI test run against a real browser.** `npm run check`
+- **No automated CI test run against a real browser.** `pnpm run check`
   covers typecheck/lint/format/unit tests; there is no CI job that builds
   the app and drives it with Playwright. `scripts/e2e-smoke.mjs` exists for
   manual use but isn't scheduled or gated on. See `docs/ROADMAP.md`.

@@ -195,3 +195,31 @@ when a browser-automation check fails right after a code change, check
 process/resource state and add instrumentation before concluding the app
 regressed — especially when nothing in the diff plausibly explains the
 failure mode. See `scripts/README.md` for where these scripts live now.
+
+### 11. Switching npm → pnpm broke the production build: a phantom dependency
+
+`pnpm run build` failed with `Rolldown failed to resolve import
+"workbox-window" from "/@vite-plugin-pwa/virtual:pwa-register"` — but
+`pnpm run check` (typecheck/lint/tests) was entirely clean, and the exact
+same source had built fine under npm moments earlier. `vite-plugin-pwa`
+declares `workbox-window` as both a `dependency` (for its own Node-side
+code) _and_ a `peerDependency` (because its `virtual:pwa-register` module
+gets bundled into the app's own client code, so it needs to resolve from
+the app's dependency graph, not the plugin's). This project never listed
+`workbox-window` itself — under npm's flat, hoisted `node_modules` that
+resolved anyway (something else's copy was reachable), silently. pnpm's
+strict, symlink-isolated `node_modules` doesn't hoist like that: a peer
+dependency has to be genuinely satisfied by the project, not just present
+somewhere in the tree. Fixed by adding `workbox-window` as an explicit
+devDependency (`pnpm add -D workbox-window@^7.4.1`, matching the other
+`workbox-*` versions already pinned).
+**Caught statically?** No — `tsc` and ESLint have no visibility into
+runtime module resolution or bundler-level peer dependency enforcement;
+this only surfaces when something actually tries to bundle/resolve the
+import, which `pnpm run check` never does (only `build` does). This is a
+known category of npm-vs-pnpm difference — "phantom dependencies," where
+code relies on a transitive package that npm's hoisting happens to expose
+but was never actually declared — worth specifically re-running a full
+`build` (not just `check`) after any package-manager migration, since a
+clean typecheck/lint/test pass doesn't exercise the bundler's module
+resolution at all.

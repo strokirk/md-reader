@@ -45,6 +45,8 @@ export default tseslint.config(
         scrollY: "readonly",
         CSS: "readonly",
         location: "readonly",
+        navigator: "readonly",
+        caches: "readonly",
       },
     },
   },

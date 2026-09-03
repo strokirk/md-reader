@@ -132,15 +132,18 @@ covers browsers without the API.
 combination) with Vitest — no DOM, no browser needed, part of `npm run
 check`.
 
-There's no automated browser/UI test suite; `scripts/e2e-smoke.mjs` is a
-manual Playwright script (not run in CI) used during development to drive a
-real Chromium through import → search → read → reload against a generated
-corpus, and to capture screenshots and perf numbers. Run it against a local
-preview build:
+There's no automated browser/UI test suite wired into CI — see
+`scripts/README.md` for the manual Playwright scripts used during
+development instead (generating a test corpus, a general import/search/
+read/reload smoke pass, and a genuine offline-reload check against the
+service worker). Run any of them against a local preview build (the dev
+server doesn't run a service worker, so use `preview` for the offline one):
 
 ```sh
 npm run build && npm run preview &
-node scripts/e2e-smoke.mjs <path-to-a-folder-of-.md-files> <output-dir>
+node scripts/gen-test-corpus.mjs /tmp/corpus
+node scripts/e2e-smoke.mjs /tmp/corpus /tmp/out
+node scripts/verify-offline.mjs /tmp/corpus
 ```
 
 ## iOS notes
@@ -162,7 +165,10 @@ node scripts/e2e-smoke.mjs <path-to-a-folder-of-.md-files> <output-dir>
 
 ## Project docs
 
+- `CLAUDE.md` — guidance for Claude Code sessions working in this repo.
 - `LEARNINGS.md` — difficulties hit during development and whether each
   could have been caught statically.
 - `docs/ROADMAP.md` — near-term plan and backlog.
 - `docs/ISSUES.md` — known gaps and bugs not yet fixed.
+- `scripts/README.md` — what the committed one-off dev scripts are and why
+  each was written.

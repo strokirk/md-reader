@@ -177,20 +177,21 @@ position.**
 
 ### 10. A Playwright test timeout that wasn't an app bug
 
-After the fix above, a follow-up validation script (`probe4.mjs`) twice hit
-a plain 30 s `waitForFunction` timeout waiting for imported books to
-appear — looking exactly like a regression. Before assuming the fix broke
-something, a fully-instrumented pass (`console`/`pageerror`/`requestfailed`
-listeners, explicit per-step timeouts, polling via `evaluate` instead of
+After the fix above, a follow-up validation script hit a plain 30 s
+`waitForFunction` timeout waiting for imported books to appear — twice in a
+row, looking exactly like a regression. Before assuming the fix broke
+something: `ps`/`free` first, to rule out the boring explanation (a leaked
+`chromium.launch()` from an earlier script that exited via an uncaught
+exception before reaching its `browser.close()` — a real risk with these
+scripts, now mitigated by wrapping each in `try/finally`) — clean, nothing
+leaked. Then a fully-instrumented rerun (`console`/`pageerror`/
+`requestfailed` listeners, explicit per-step timeouts, polling instead of
 `waitForFunction`) showed the import actually completing in under 3
-seconds; re-running the original unmodified script immediately after
-succeeded too. `ps`/`free` showed no orphaned Chromium processes and ample
-free memory, ruling out resource exhaustion from repeated `chromium.launch()`
-calls (a real risk when a script exits via an uncaught exception before its
-`browser.close()` runs — worth guarding with `try/finally` regardless).
-**Caught statically?** N/A — this was environmental flakiness in headless
-Chromium cold-starts under a sandboxed container, not a code issue at all.
-The lesson is procedural: when a browser-automation check fails, add
-instrumentation and retry with generous timeouts before concluding the
-application regressed, especially when nothing in the diff plausibly
-explains the failure mode.
+seconds; the original unmodified script then succeeded immediately after
+too.
+**Caught statically?** N/A — environmental flakiness in headless-Chromium
+cold starts under a sandboxed container, not a code issue. The takeaway:
+when a browser-automation check fails right after a code change, check
+process/resource state and add instrumentation before concluding the app
+regressed — especially when nothing in the diff plausibly explains the
+failure mode. See `scripts/README.md` for where these scripts live now.

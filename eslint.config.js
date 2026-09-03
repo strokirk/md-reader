@@ -15,6 +15,7 @@ export default tseslint.config(
     },
     rules: {
       "@typescript-eslint/no-non-null-assertion": "error",
+      "@typescript-eslint/no-confusing-void-expression": "off",
       "@typescript-eslint/no-unused-vars": [
         "error",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_", ignoreRestSiblings: true },
@@ -26,7 +27,8 @@ export default tseslint.config(
     },
   },
   {
-    files: ["eslint.config.js", "vite.config.ts"],
+    files: ["eslint.config.js", "vite.config.ts", "vitest.config.ts", "scripts/**/*.mjs"],
     extends: [tseslint.configs.disableTypeChecked],
+    languageOptions: { globals: { Buffer: "readonly", console: "readonly", process: "readonly" } },
   },
 );

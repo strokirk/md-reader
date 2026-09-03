@@ -17,7 +17,13 @@ import {
   getFileMetaByPath,
   putFileMeta,
 } from "../storage/db.ts";
-import { QuotaExceededError, readText, removeFile, storageEstimate, writeText } from "../storage/opfs.ts";
+import {
+  QuotaExceededError,
+  readText,
+  removeFile,
+  storageEstimate,
+  writeText,
+} from "../storage/opfs.ts";
 import type { Book, ImportOutcome, LibraryApi } from "./api.ts";
 
 interface LoadedFile {
@@ -179,6 +185,18 @@ const api: LibraryApi = {
     return book;
   },
 
+  async getBlocks(fileId, indices) {
+    await api.init();
+    const f = files.get(fileId);
+    if (!f) return [];
+    const out: Block[] = [];
+    for (const i of indices) {
+      const b = f.blocks[i];
+      if (b) out.push(b);
+    }
+    return out;
+  },
+
   async getSection(fileId, blockIndex, level) {
     await api.init();
     const f = files.get(fileId);
@@ -225,7 +243,9 @@ const api: LibraryApi = {
       const f = files.get(query.scope.fileId);
       targets = f ? [f] : [];
     } else {
-      targets = sortedMetas().map((m) => files.get(m.id)).filter((f): f is LoadedFile => !!f);
+      targets = sortedMetas()
+        .map((m) => files.get(m.id))
+        .filter((f): f is LoadedFile => !!f);
       if (preferredFileId) {
         const idx = targets.findIndex((f) => f.meta.id === preferredFileId);
         if (idx > 0) {

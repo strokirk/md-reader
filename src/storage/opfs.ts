@@ -8,7 +8,11 @@ const LIB_DIR = "lib";
 let libDirPromise: Promise<FileSystemDirectoryHandle> | null = null;
 
 export function isOpfsAvailable(): boolean {
-  return typeof navigator !== "undefined" && "storage" in navigator && "getDirectory" in navigator.storage;
+  return (
+    typeof navigator !== "undefined" &&
+    "storage" in navigator &&
+    "getDirectory" in navigator.storage
+  );
 }
 
 async function libDir(): Promise<FileSystemDirectoryHandle> {

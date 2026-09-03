@@ -36,6 +36,8 @@ export interface LibraryApi {
   clearLibrary(): Promise<void>;
   listFiles(): Promise<FileMeta[]>;
   getBook(fileId: string): Promise<Book | null>;
+  /** Specific blocks of a file, in the order requested. Unknown indices are skipped. */
+  getBlocks(fileId: string, indices: number[]): Promise<Block[]>;
   /** Blocks belonging to the section that contains `blockIndex` at heading level `level`. */
   getSection(fileId: string, blockIndex: number, level: number): Promise<Block[]>;
   /**

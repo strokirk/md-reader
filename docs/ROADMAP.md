@@ -18,6 +18,10 @@
 - PWA shell: manifest, service worker (app-shell precache + Web Share
   Target), safe-area-aware layout, `dvh` viewport handling.
 - GitHub Pages deploy workflow.
+- Fixed TOC jumps on long, many-section files occasionally landing far off
+  target, and jittery/thrown-off-position scroll-up afterward — both traced
+  to nested `content-visibility: auto` on the section wrapper reporting a
+  flat, content-blind size guess. See `LEARNINGS.md` #12.
 
 ## Near-term
 

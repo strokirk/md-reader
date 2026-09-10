@@ -173,6 +173,84 @@ runtime/browser instrumentation used here. Worth remembering generally:
 moved between parents; only do so once the node is in its final, connected
 position.**
 
+### 12. TOC jumps on long files occasionally missed, and scroll-up was jittery — nested `content-visibility: auto` reporting a flat size guess
+
+**Symptom:** on a file with many sections, jumping to a heading far down via
+the TOC drawer occasionally landed far from the target instead of at the
+top of the viewport, and scrolling back up afterward through the skipped
+chapters was visibly jittery, sometimes throwing the reading position away
+from where the reader actually was.
+
+**Root cause:** `BlockList` renders each heading's content inside a
+`<section class="sec">` wrapping a `<div class="sec-body">` of `<div
+class="chunk">`s (`src/ui/render.ts`). `.chunk` already had `content-
+visibility: auto` with a `contain-intrinsic-size` computed per chunk from
+real block text length (`estimateHeight()`) — a reasonable guess. But `.sec`
+_also_ had `content-visibility: auto`, with a flat, content-blind
+`contain-intrinsic-size: auto 600px` (`src/style.css`). Per the CSS
+Containment spec, a skipped `content-visibility: auto` element reports
+_only_ its `contain-intrinsic-size` as its box — not the sum of its
+(possibly also-skipped) children's sizes. So an off-screen chapter with far
+more than 600px of real content (the common case — chapters routinely ran
+to several thousand pixels in testing) reported exactly 600px regardless,
+making the whole document's estimated layout dramatically shorter than
+reality: measured at ~165,000px estimated vs. ~781,000px real for a
+~3 MB/17,000-line synthetic book — roughly 4.7x off. Every such
+still-skipped section between the current scroll position and a far-down
+TOC target contributed that wrong number to the position the jump was
+computed against, so `BlockList.scrollTo()`'s `el.scrollIntoView()` (and
+its one-frame correction) could land far short of or past the real target.
+Separately, as the reader scrolled up through those sections and each one's
+`content-visibility` un-skipped (snapping from the 600px guess to its real
+size), nothing compensated for the resulting layout shift — the app had no
+resize-driven scroll-anchoring of its own, and nested `content-visibility`
+is known to interact poorly with the browser's native CSS scroll anchoring
+(a skipped ancestor's un-skip is a much larger, less "local" resize than
+scroll anchoring is generally tuned for), producing visible, sometimes
+large jumps.
+
+**Fix:** dropped `content-visibility`/`contain-intrinsic-size` from `.sec`
+entirely — only `.chunk` needs it, and letting `.sec`'s box be the real sum
+of its (possibly still-skipped, but individually reasonably-estimated)
+`.chunk` children's sizes fixed the ~4.7x low estimate. Added a
+`ResizeObserver` in `BlockList` that watches every `.chunk` and, when one
+resizes while positioned above the viewport, `scrollBy`s the delta so the
+visible content doesn't jump — a manual, explicit version of what scroll
+anchoring is supposed to provide, scoped to exactly the resize source that
+was causing trouble. Also folded `.blk`'s own `margin: 0 0 1em` into
+`estimateHeight()`'s per-block guess (previously omitted entirely), which
+shrinks the size of the "surprise" each chunk's un-skip produces in the
+first place and so shrinks how much the `ResizeObserver` compensation ever
+has to correct for.
+
+Verified with a new `scripts/diagnose-toc-scroll.mjs` (a synthetic ~3 MB/
+17,000-line single book, `gen-test-corpus.mjs`) comparing before/after: TOC
+jump landing offset went from 863px (target not visibly on screen) to
+~40px; max visual jitter of the landed-on heading while scrolling up went
+from 679px to ~83px, with zero >150px jumps (down from several). The
+`ResizeObserver` compensation is not perfectly jitter-free even after the
+fix — per the HTML spec, `ResizeObserver` callbacks run after that frame's
+`requestAnimationFrame` callbacks, so a single frame of uncompensated
+movement is possible before it catches up — but it bounds the damage
+sharply. Documented as a known residual limitation in `docs/ISSUES.md`
+rather than claimed as fully eliminated.
+
+**Caught statically?** No. Nothing about `tsc` or ESLint models what a
+skipped `content-visibility: auto` element reports as its own box size, or
+that nesting it two levels deep changes that reporting from "sum of
+children" to "the ancestor's own flat guess, full stop." This is exactly
+the kind of interaction between two CSS containment rules that only shows
+up by measuring real layout in a real browser at a realistic document size
+— a small hand-written test fixture (a handful of headings/paragraphs)
+would never have exposed a 600px-vs-thousands-of-pixels gap, since it takes
+a chapter with meaningfully more than 600px of content, several chapters
+deep and off-screen, to matter. Found by writing exactly that kind of
+fixture (`gen-test-corpus.mjs`, already existing for this purpose) and
+measuring `document.documentElement.scrollHeight` and element
+`getBoundingClientRect()` before/after in a real headless-Chromium session
+— the same category of "reach directly into the live browser state" tool
+as `diagnose-heading-highlight.mjs` in #9.
+
 ## Process notes (not code bugs)
 
 ### 10. A Playwright test timeout that wasn't an app bug

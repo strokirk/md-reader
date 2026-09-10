@@ -9,13 +9,20 @@ export function renderMarkdown(source: string): string {
   return md.render(source);
 }
 
-/** Rough pixel height guess used for `contain-intrinsic-size` before a chunk renders. */
+/**
+ * Rough pixel height guess used for `contain-intrinsic-size` before a chunk
+ * renders. Includes the block's own `margin: 0 0 1em` (`.blk` in style.css,
+ * ~16px at the default font-scale) so the guess isn't short by a whole
+ * margin on every single block — with dozens of blocks per off-screen
+ * chunk, that shortfall otherwise compounds into a large jump once the
+ * chunk's real size replaces the estimate.
+ */
 function estimateHeight(block: Block): number {
   const lines = Math.max(
     1,
     Math.ceil(block.text.length / 70) + (block.text.match(/\n/g)?.length ?? 0),
   );
-  return 20 + lines * 27;
+  return 20 + lines * 27 + 16;
 }
 
 const CHUNK_SIZE = 40;
@@ -39,6 +46,8 @@ export class BlockList {
   private readonly chunkBlocks = new Map<HTMLElement, number[]>();
   private readonly observer: IntersectionObserver;
   private readonly headingSections = new Map<number, HTMLElement>();
+  private readonly anchorSizes = new WeakMap<HTMLElement, number>();
+  private readonly anchorObserver: ResizeObserver;
 
   constructor(
     readonly root: HTMLElement,
@@ -53,6 +62,22 @@ export class BlockList {
       },
       { rootMargin: "150% 0px 150% 0px" },
     );
+    // A chunk's height snaps from its estimate to its real size the moment
+    // content-visibility: auto un-skips it, which happens continuously as the
+    // reader scrolls (not just once, so a single post-scroll correction isn't
+    // enough). When that happens above the viewport, compensate the scroll
+    // offset so the content on screen doesn't jump.
+    this.anchorObserver = new ResizeObserver((entries) => {
+      let delta = 0;
+      for (const entry of entries) {
+        const el = entry.target as HTMLElement;
+        const height = el.offsetHeight;
+        const prev = this.anchorSizes.get(el);
+        this.anchorSizes.set(el, height);
+        if (prev !== undefined && el.getBoundingClientRect().top < 0) delta += height - prev;
+      }
+      if (delta !== 0) window.scrollBy(0, delta);
+    });
     this.build();
   }
 
@@ -77,6 +102,7 @@ export class BlockList {
       chunk.style.setProperty("--est", `${chunkEstimate}px`);
       this.chunkBlocks.set(chunk, chunkIndices);
       this.observer.observe(chunk);
+      this.anchorObserver.observe(chunk);
       chunk = null;
       chunkIndices = [];
       chunkEstimate = 0;
@@ -258,6 +284,7 @@ export class BlockList {
 
   destroy(): void {
     this.observer.disconnect();
+    this.anchorObserver.disconnect();
     this.chunkBlocks.clear();
     this.root.replaceChildren();
   }

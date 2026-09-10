@@ -30,3 +30,13 @@ position), but these are gaps worth knowing about.
   (linear scan) is chosen deliberately for that scale, but no single test
   file anywhere near that size has been exercised — only a synthetic ~6 MB
   library across several books.
+- **Scrolling far past many still-estimated `.chunk`s can still show brief,
+  small jitter.** `BlockList`'s `ResizeObserver`-based scroll compensation
+  (see `LEARNINGS.md` #12) absorbs the size jump when a skipped chunk's
+  `content-visibility: auto` estimate snaps to its real size, but per the
+  HTML spec `ResizeObserver` callbacks run after that frame's
+  `requestAnimationFrame` callbacks, so a single frame of uncompensated
+  movement is possible before it catches up. Bounded to well under a
+  hundred pixels in `scripts/diagnose-toc-scroll.mjs` against a synthetic
+  ~3 MB single file — not eliminated, just no longer able to throw the
+  reader hundreds of pixels off.

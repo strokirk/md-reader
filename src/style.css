@@ -506,10 +506,9 @@ html.dragging body::after {
   font-size: calc(1em * var(--font-scale));
   overflow-wrap: anywhere;
 }
-.sec {
-  content-visibility: auto;
-  contain-intrinsic-size: auto 600px;
-}
+/* content-visibility lives only on .chunk, not on .sec: nesting it on the
+   section wrapper too would report a size-blind guess for a whole chapter
+   instead of the sum of its chunks' own text-based estimates. */
 .chunk {
   content-visibility: auto;
   contain-intrinsic-size: auto var(--est, 800px);
